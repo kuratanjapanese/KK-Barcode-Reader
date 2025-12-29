@@ -3,69 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>凝縮リーダー v6.3</title>
+    <title>フルスキャンリーダー v6.4</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        /* 画面全体を固定してスクロールを禁止 */
-        html, body { 
-            height: 100%; margin: 0; padding: 0; overflow: hidden;
-            font-family: sans-serif; background-color: #f0f2f5; 
-            display: flex; flex-direction: column; align-items: center;
+        body { 
+            margin: 0; padding: 0; font-family: sans-serif; 
+            background-color: #000; color: #fff;
+            height: 100vh; display: flex; flex-direction: column;
         }
         
-        h2 { font-size: 18px; margin: 5px 0; color: #333; }
-
-        /* スイッチを少し小さく */
-        .switch-container {
-            display: flex; align-items: center; gap: 10px;
-            background: #fff; padding: 8px 20px; border-radius: 50px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin: 5px 0;
+        /* スイッチ：画面上部に固定 */
+        .header {
+            padding: 10px; background: rgba(0,0,0,0.8);
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
         }
-        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch-container {
+            display: flex; align-items: center; gap: 15px;
+            background: #fff; padding: 10px 25px; border-radius: 50px;
+        }
+        .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ff9900; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #007bff; }
-        input:checked + .slider:before { transform: translateX(24px); }
+        input:checked + .slider:before { transform: translateX(30px); }
 
-        /* カメラ画面を小さく固定 */
-        #reader { width: 90%; max-width: 350px; border-radius: 12px; overflow: hidden; background: #000; height: 180px !important; }
+        /* カメラ画面：画面の大部分を占拠 */
+        #reader { 
+            flex-grow: 1; width: 100%; background: #000;
+        }
+        /* 角の向きを修正 */
         #reader__scan_region img { transform: scaleY(-1); }
 
-        /* 情報カードもコンパクトに */
-        .info-card { 
-            background: white; padding: 10px; border-radius: 12px; 
-            width: 90%; max-width: 350px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 8px;
+        /* 情報エリア：画面下部に浮かせる */
+        .info-panel {
+            background: white; color: #333; padding: 15px;
+            border-top-left-radius: 20px; border-top-right-radius: 20px;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
         }
-        .price-tag { font-size: 22px; color: #ff0033; font-weight: bold; margin: 2px 0; }
-        .item-name { font-size: 13px; color: #333; height: 32px; overflow: hidden; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+        .price-tag { font-size: 30px; color: #ff0033; font-weight: bold; margin: 5px 0; }
+        .item-name { font-size: 14px; font-weight: bold; margin-bottom: 10px; min-height: 2.4em; }
         
-        .btn-container { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
-        .btn { flex: 1; color: white; text-decoration: none; padding: 10px 0; border-radius: 6px; font-weight: bold; font-size: 13px; display: none; }
+        .btn-container { display: flex; gap: 10px; }
+        .btn { flex: 1; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; display: none; text-align: center; }
         .btn-amazon { background: #ff9900; }
         .btn-yahoo { background: #ff0033; }
         
-        #res-code { font-size: 10px; color: #999; margin-top: 5px; }
+        #res-code { font-size: 11px; color: #888; margin-top: 8px; }
     </style>
 </head>
 <body>
 
-    <h2>二刀流リーダー v6.3</h2>
-
-    <div class="switch-container">
-        <span style="font-size:12px; font-weight:bold;">🛒 商品</span>
-        <label class="switch">
-            <input type="checkbox" id="mode-toggle" onchange="switchMode()">
-            <span class="slider"></span>
-        </label>
-        <span style="font-size:12px; font-weight:bold;">🔗 QR</span>
+    <div class="header">
+        <div class="switch-container">
+            <span style="color:#555; font-size:14px; font-weight:bold;">🛒 商品</span>
+            <label class="switch">
+                <input type="checkbox" id="mode-toggle" onchange="switchMode()">
+                <span class="slider"></span>
+            </label>
+            <span style="color:#555; font-size:14px; font-weight:bold;">🔗 QR</span>
+        </div>
+        <div id="status-label" style="font-size:12px; font-weight:bold; color:#ff9900;">【バーコードモード】</div>
     </div>
     
     <div id="reader"></div>
 
-    <div class="info-card">
-        <div id="status-label" style="font-size: 11px; font-weight: bold; color: #ff9900;">【バーコードモード】</div>
-        <div id="item-name" class="item-name">スキャン待機中...</div>
+    <div class="info-panel">
+        <div id="item-name" class="item-name">スキャンしてください</div>
         <div id="yahoo-price" class="price-tag">¥ ---</div>
         
         <div class="btn-container">
@@ -103,11 +107,11 @@
             html5QrCode = new Html5Qrcode("reader");
             const isQRMode = document.getElementById('mode-toggle').checked;
             
-            // 画面に収まるようにさらにコンパクトな設定
+            // 画面いっぱいに広げる設定
             const config = { 
-                fps: 10, 
-                qrbox: isQRMode ? { width: 140, height: 140 } : { width: 220, height: 80 },
-                aspectRatio: 1.77 // カメラ映像自体を横長に固定
+                fps: 15, // 少し反応を速く
+                qrbox: isQRMode ? { width: 250, height: 250 } : { width: 300, height: 150 },
+                aspectRatio: window.innerWidth / (window.innerHeight * 0.6) // 画面比率に合わせる
             };
 
             document.getElementById('status-label').innerText = isQRMode ? "【QRモード】" : "【バーコードモード】";
