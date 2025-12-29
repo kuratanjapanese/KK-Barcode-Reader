@@ -3,75 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>全画面フィット v6.9</title>
+    <title>ナビ回避リーダー v7.0</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        /* 画面全体のスクロールを完全に禁止 */
+        /* スクロールを禁止し、ナビバー分を考慮して少し短めに設定 */
         html, body { 
-            margin: 0; padding: 0; width: 100%; height: 100vh; 
+            margin: 0; padding: 0; width: 100%; 
+            height: 100dvh; /* 動的な画面高さを採用 */
             overflow: hidden; font-family: sans-serif; 
             background-color: #000; color: #fff;
             display: flex; flex-direction: column;
         }
         
-        /* ヘッダー：高さ固定 */
+        /* ヘッダー */
         .header {
-            height: 60px; padding: 5px; background: rgba(0,0,0,0.8);
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+            height: 55px; padding: 5px; background: rgba(0,0,0,0.8);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
         }
         .switch-container {
             display: flex; align-items: center; gap: 10px;
-            background: #fff; padding: 5px 20px; border-radius: 50px;
+            background: #fff; padding: 4px 18px; border-radius: 50px;
         }
-        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ff9900; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #007bff; }
-        input:checked + .slider:before { transform: translateX(22px); }
+        input:checked + .slider:before { transform: translateX(20px); }
 
-        /* カメラ：残りの画面の約55%〜60%を占有 */
-        #reader { 
-            flex-grow: 1; width: 100%; background: #000; 
-            /* Html5Qrcodeの内蔵スタイルを上書きして画面にフィットさせる */
-        }
+        /* カメラ：画面中央 */
+        #reader { flex-grow: 1; width: 100%; background: #000; }
         #reader__scan_region img { transform: scaleY(-1); }
 
-        /* 情報パネル：下部に固定、高さはコンテンツに合わせつつ調整 */
+        /* 情報パネル：ナビバーに被らないよう下にマージンを確保 */
         .info-panel {
-            background: white; color: #333; padding: 10px;
+            background: white; color: #333; 
+            padding: 10px 10px 20px 10px; /* 下側の余白を広め(20px)に設定 */
             border-top-left-radius: 20px; border-top-right-radius: 20px;
             box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
-            display: flex; flex-direction: column; gap: 5px;
+            display: flex; flex-direction: column; gap: 4px;
         }
-        .item-name { font-size: 12px; font-weight: bold; height: 2.4em; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; }
-        .price-tag { font-size: 24px; color: #ff0033; font-weight: bold; text-align: center; }
+        .item-name { font-size: 11px; font-weight: bold; height: 2.2em; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.2; }
+        .price-tag { font-size: 22px; color: #ff0033; font-weight: bold; text-align: center; }
         
-        .btn-container { display: flex; gap: 5px; }
-        .btn { flex: 1; color: white; text-decoration: none; padding: 10px 0; border-radius: 8px; font-weight: bold; font-size: 11px; display: none; text-align: center; }
+        .btn-container { display: flex; gap: 4px; }
+        .btn { flex: 1; color: white; text-decoration: none; padding: 8px 0; border-radius: 6px; font-weight: bold; font-size: 10px; display: none; text-align: center; }
         .btn-amazon { background: #ff9900; }
         .btn-yahoo { background: #ff0033; }
         .btn-google { background: #4285F4; }
         
         .force-btn {
             width: 100%; background: #666; color: white; border: none;
-            padding: 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: none;
+            padding: 7px; border-radius: 5px; font-size: 10px; font-weight: bold; display: none;
         }
-        #res-code { font-size: 9px; color: #888; text-align: center; margin-bottom: 5px; }
+        #res-code { font-size: 8px; color: #888; text-align: center; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <div class="switch-container">
-            <span style="color:#555; font-size:11px; font-weight:bold;">🛒 商品</span>
+            <span style="color:#555; font-size:10px; font-weight:bold;">🛒 商品</span>
             <label class="switch">
                 <input type="checkbox" id="mode-toggle" onchange="switchMode()">
                 <span class="slider"></span>
             </label>
-            <span style="color:#555; font-size:11px; font-weight:bold;">🔗 QR</span>
+            <span style="color:#555; font-size:10px; font-weight:bold;">🔗 QR</span>
         </div>
-        <div id="status-label" style="font-size:10px; font-weight:bold; color:#ff9900;">【バーコードモード】</div>
+        <div id="status-label" style="font-size:9px; font-weight:bold; color:#ff9900;">【バーコードモード】</div>
     </div>
     
     <div id="reader"></div>
@@ -130,9 +129,8 @@
             html5QrCode = new Html5Qrcode("reader");
             const isQRMode = document.getElementById('mode-toggle').checked;
             
-            // 画面の高さに合わせて、qrboxのサイズも動的に調整
             const readerElement = document.getElementById('reader');
-            const boxWidth = Math.min(readerElement.clientWidth * 0.8, 300);
+            const boxWidth = Math.min(readerElement.clientWidth * 0.75, 280);
             const boxHeight = isQRMode ? boxWidth : boxWidth * 0.5;
 
             const config = { 
