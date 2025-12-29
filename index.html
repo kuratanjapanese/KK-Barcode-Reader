@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最強バーコードリーダー v3.2</title>
+    <title>全方式対応リーダー v3.3</title>
     <style>
         body { font-family: sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 10px; transition: background-color 0.3s; }
         .flash { background-color: #a7ffeb !important; }
@@ -21,8 +21,7 @@
 </head>
 <body>
 
-    <h2 style="color:#333;">商品検索リーダー v3.2</h2>
-    
+    <h2 style="color:#333;">全方式対応リーダー v3.3</h2>
     <div id="interactive"></div>
 
     <div class="info-card">
@@ -76,24 +75,32 @@
             }
         }
 
-        // v3.2: かすれ・ボケ対策設定
+        // v3.3: 主要なバーコード方式をすべて追加！
         Quagga.init({
             inputStream: { 
                 type: "LiveStream", 
                 target: document.querySelector('#interactive'), 
                 constraints: { 
                     facingMode: "environment",
-                    width: { min: 640 },
-                    height: { min: 480 }
+                    width: { min: 1280 }, // 高解像度にして精度UP
+                    height: { min: 720 }
                 } 
             },
-            locate: true, // バーコードの位置を自動追跡
+            locate: true,
             decoder: { 
-                readers: ["ean_reader"],
+                // 対応方式を全開放！
+                readers: [
+                    "ean_reader",      // JAN-13（いろはす等）
+                    "ean_8_reader",    // JAN-8（アポロ等）
+                    "code_128_reader", // 物流などで使われる方式
+                    "code_39_reader",  // 工業などで使われる方式
+                    "upc_reader",      // 海外の方式
+                    "upc_e_reader"     // 海外の短縮方式
+                ],
                 multiple: false 
             },
-            patchSize: "medium", // スキャン精度の調整
-            halfSample: true    // 処理速度と精度のバランス
+            patchSize: "medium",
+            halfSample: false // ファイルサイズ無視！精度を最大にする
         }, (err) => { 
             if(err) {
                 document.getElementById('item-name').innerText = "カメラ起動エラー";
