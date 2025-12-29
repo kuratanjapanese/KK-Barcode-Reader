@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>精密スキャンリーダー v6.6</title>
+    <title>最強検索リーダー v6.8</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { margin: 0; padding: 0; font-family: sans-serif; background-color: #000; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -15,25 +15,31 @@
         .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #007bff; }
         input:checked + .slider:before { transform: translateX(26px); }
-        
-        #reader { flex-grow: 1; width: 100%; background: #000; cursor: crosshair; }
+
+        #reader { flex-grow: 1; width: 100%; background: #000; }
         #reader__scan_region img { transform: scaleY(-1); }
 
-        .info-panel { background: white; color: #333; padding: 15px; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 10px rgba(0,0,0,0.3); z-index: 10; }
-        .price-tag { font-size: 28px; color: #ff0033; font-weight: bold; margin: 2px 0; }
-        .item-name { font-size: 13px; font-weight: bold; margin-bottom: 8px; min-height: 2.4em; display: flex; align-items: center; justify-content: center; }
-        .btn-container { display: flex; gap: 8px; flex-wrap: wrap; }
-        .btn { flex: 1; min-width: 90px; color: white; text-decoration: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 12px; display: none; text-align: center; }
+        .info-panel { background: white; color: #333; padding: 12px; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 10px rgba(0,0,0,0.3); z-index: 10; }
+        .price-tag { font-size: 26px; color: #ff0033; font-weight: bold; margin: 2px 0; }
+        .item-name { font-size: 13px; font-weight: bold; margin-bottom: 8px; min-height: 2.4em; display: flex; align-items: center; justify-content: center; text-align: center; }
+        
+        .btn-container { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn { flex: 1; min-width: 85px; color: white; text-decoration: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 11px; display: none; text-align: center; }
         .btn-amazon { background: #ff9900; }
         .btn-yahoo { background: #ff0033; }
         .btn-google { background: #4285F4; }
-        #res-code { font-size: 10px; color: #888; margin-top: 5px; }
+        
+        /* 強制検索ボタンのスタイル */
+        .force-btn {
+            width: 100%; margin-top: 8px; background: #666; color: white; border: none;
+            padding: 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: none;
+        }
 
-        /* タップしてね！のガイド */
-        .focus-guide { position: absolute; top: 50%; width: 100%; text-align: center; color: rgba(255,255,255,0.5); font-size: 12px; pointer-events: none; }
+        #res-code { font-size: 10px; color: #888; margin-top: 5px; word-break: break-all; }
     </style>
 </head>
 <body>
+
     <div class="header">
         <div class="switch-container">
             <span style="color:#555; font-size:12px; font-weight:bold;">🛒 商品</span>
@@ -46,18 +52,20 @@
         <div id="status-label" style="font-size:11px; font-weight:bold; color:#ff9900;">【バーコードモード】</div>
     </div>
     
-    <div id="reader">
-        <div class="focus-guide">タップしてピントを合わせる</div>
-    </div>
+    <div id="reader"></div>
 
     <div class="info-panel">
-        <div id="item-name" class="item-name">スキャンしてください</div>
+        <div id="item-name" class="item-name">スキャンを待機中...</div>
         <div id="yahoo-price" class="price-tag">¥ ---</div>
+        
         <div class="btn-container">
             <a id="amazon-link" class="btn btn-amazon" target="_blank">Amazon</a>
             <a id="yahoo-link" class="btn btn-yahoo" target="_blank">Yahoo!</a>
-            <a id="google-link" class="btn btn-google" target="_blank">Google検索</a>
+            <a id="google-link" class="btn btn-google" target="_blank">Google</a>
         </div>
+        
+        <button id="force-btn" class="force-btn" onclick="forceSearch()">コードで直接再検索</button>
+        
         <div id="res-code">CODE: -</div>
     </div>
 
@@ -65,63 +73,71 @@
         const CLIENT_ID = "dj00aiZpPUZYTWdEYTdlSHF1aCZzPWNvbnN1bWVyc2VjcmV0Jng9Zjc-";
         let html5QrCode;
         let isScanning = true;
+        let lastCode = ""; // 最後に読み取ったコードを保存
 
         async function fetchYahooData(janCode) {
             const url = `https://corsproxy.io/?${encodeURIComponent("https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch?appid="+CLIENT_ID+"&jan_code="+janCode)}`;
             try {
                 const res = await fetch(url);
                 const data = await res.json();
+                let searchQuery = janCode;
+                
                 if (data.hits && data.hits.length > 0) {
                     const item = data.hits[0];
                     document.getElementById('item-name').innerText = item.name;
                     document.getElementById('yahoo-price').innerText = `¥ ${item.price.toLocaleString()}`;
+                    searchQuery = item.name;
                 } else {
-                    document.getElementById('item-name').innerText = "商品名不明（工場・物流コードの可能性）";
+                    document.getElementById('item-name').innerText = "商品名不明";
                 }
+                updateUI(searchQuery, janCode);
             } catch (e) { document.getElementById('item-name').innerText = "検索エラー"; }
+        }
+
+        function updateUI(query, code) {
+            document.getElementById('amazon-link').href = "https://www.amazon.co.jp/s?k=" + encodeURIComponent(query);
+            document.getElementById('amazon-link').style.display = 'block';
+            document.getElementById('yahoo-link').href = "https://shopping.yahoo.co.jp/search?p=" + encodeURIComponent(code);
+            document.getElementById('yahoo-link').style.display = 'block';
+            document.getElementById('google-link').href = "https://www.google.com/search?q=" + encodeURIComponent(query);
+            document.getElementById('google-link').style.display = 'block';
+            
+            // 強制検索ボタンを表示
+            document.getElementById('force-btn').style.display = 'block';
+        }
+
+        // 強制的にコードそのもので検索する関数
+        function forceSearch() {
+            if (!lastCode) return;
+            window.open("https://www.google.com/search?q=" + encodeURIComponent(lastCode), '_blank');
         }
 
         async function startScanner() {
             if (html5QrCode) { await html5QrCode.stop(); html5QrCode.clear(); }
             html5QrCode = new Html5Qrcode("reader");
             const isQRMode = document.getElementById('mode-toggle').checked;
-            
             const config = { 
-                fps: 20, // さらに高速化
-                qrbox: isQRMode ? { width: 250, height: 250 } : { width: 320, height: 180 },
-                aspectRatio: window.innerWidth / (window.innerHeight * 0.6),
-                // ブラウザ側のビデオ設定でフォーカスを促す
-                videoConstraints: {
-                    facingMode: "environment",
-                    focusMode: "continuous" // 基本はオート、タップで補正
-                }
+                fps: 20, 
+                qrbox: isQRMode ? { width: 220, height: 220 } : { width: 300, height: 150 },
+                aspectRatio: window.innerWidth / (window.innerHeight * 0.6)
             };
-
             document.getElementById('status-label').innerText = isQRMode ? "【QRモード】" : "【バーコードモード】";
             document.getElementById('status-label').style.color = isQRMode ? "#007bff" : "#ff9900";
 
             html5QrCode.start({ facingMode: "environment" }, config, (text) => {
                 if (!isScanning) return;
                 isScanning = false;
+                lastCode = text; // コードを保存
                 document.getElementById('res-code').innerText = "CODE: " + text;
-                
-                const ggl = document.getElementById('google-link');
-                ggl.href = "https://www.google.com/search?q=" + encodeURIComponent(text);
-                ggl.style.display = 'block';
-
                 if (isQRMode) {
                     if (text.startsWith('http')) window.open(text, '_blank');
+                    updateUI(text, text);
                 } else {
-                    document.getElementById('amazon-link').style.display = 'block';
-                    document.getElementById('amazon-link').href = "https://www.amazon.co.jp/s?k=" + text;
-                    document.getElementById('yahoo-link').style.display = 'block';
-                    document.getElementById('yahoo-link').href = "https://shopping.yahoo.co.jp/search?p=" + text;
                     fetchYahooData(text);
                 }
                 setTimeout(() => { isScanning = true; }, 3000);
             });
         }
-
         function switchMode() { startScanner(); }
         window.onload = startScanner;
     </script>
