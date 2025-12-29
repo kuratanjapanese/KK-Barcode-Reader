@@ -3,43 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最強2画面リーダー v5.0</title>
+    <title>最強スイッチリーダー v6.0</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 5px; }
-        .scanner-label { background: #333; color: white; font-size: 12px; padding: 5px; border-radius: 5px 5px 0 0; display: block; width: fit-content; margin: 0 auto; }
-        .scanner-container { width: 100%; max-width: 400px; margin: 0 auto 10px; border: 3px solid #333; border-radius: 10px; overflow: hidden; height: 180px; background: #000; }
+        body { font-family: sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 10px; }
         
-        .info-card { background: white; padding: 10px; border-radius: 15px; display: inline-block; width: 95%; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
-        .price-tag { font-size: 24px; color: #ff0033; font-weight: bold; margin: 5px 0; }
-        .item-name { font-size: 13px; color: #333; font-weight: bold; min-height: 35px; }
+        /* トグルスイッチのスタイル */
+        .switch-container {
+            display: flex; align-items: center; justify-content: center; gap: 15px;
+            background: #fff; padding: 15px; border-radius: 50px; width: fit-content; margin: 10px auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .toggle-label { font-size: 14px; font-weight: bold; color: #555; }
+        .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ff9900; transition: .4s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #007bff; }
+        input:checked + .slider:before { transform: translateX(30px); }
+
+        /* 読み取り画面 */
+        #reader { width: 100%; max-width: 450px; margin: 10px auto; border-radius: 15px; overflow: hidden; background: #000; height: 300px; }
         
-        .history-area { text-align: left; max-width: 400px; margin: 0 auto; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 10px; font-size: 11px; max-height: 80px; overflow-y: auto; }
+        .info-card { background: white; padding: 15px; border-radius: 15px; display: inline-block; width: 95%; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 10px; }
+        .price-tag { font-size: 28px; color: #ff0033; font-weight: bold; margin: 10px 0; }
+        .item-name { font-size: 14px; color: #333; min-height: 45px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .history-area { text-align: left; max-width: 400px; margin: 10px auto; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 10px; font-size: 11px; }
     </style>
 </head>
 <body>
 
-    <span class="scanner-label">🛒 商品バーコード用</span>
-    <div id="barcode-reader" class="scanner-container"></div>
+    <h2 style="color:#333;">二刀流リーダー v6.0</h2>
+
+    <div class="switch-container">
+        <span class="toggle-label">🛒 商品</span>
+        <label class="switch">
+            <input type="checkbox" id="mode-toggle" onchange="switchMode()">
+            <span class="slider"></span>
+        </label>
+        <span class="toggle-label">🔗 QR</span>
+    </div>
+    
+    <div id="reader"></div>
 
     <div class="info-card">
-        <div id="item-name" class="item-name">バーコードをスキャン！</div>
+        <div id="status-label" style="font-weight: bold; color: #ff9900;">【バーコードモード】</div>
+        <div id="item-name" class="item-name">スキャンを待機中...</div>
         <div id="yahoo-price" class="price-tag">¥ ---</div>
-        <div id="res-code" style="font-size: 11px; color: #999;">CODE: -</div>
+        <div id="res-code" style="font-size: 12px; color: #999;">CODE: -</div>
     </div>
 
-    <span class="scanner-label">🔗 QRコード用</span>
-    <div id="qr-reader" class="scanner-container"></div>
-
     <div class="history-area">
-        <strong>📜 履歴:</strong> <span id="history-list"></span>
+        <strong>📜 スキャン履歴:</strong> <span id="history-list"></span>
     </div>
 
     <script>
         const CLIENT_ID = "dj00aiZpPUZYTWdEYTdlSHF1aCZzPWNvbnN1bWVyc2VjcmV0Jng9Zjc-";
+        let html5QrCode;
+        let isScanning = true;
+
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        function playBeep(freq = 880) {
+        function playBeep(freq) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain); gain.connect(audioCtx.destination);
@@ -58,44 +88,57 @@
                     document.getElementById('item-name').innerText = item.name;
                     document.getElementById('yahoo-price').innerText = `¥ ${item.price.toLocaleString()}`;
                 } else {
-                    document.getElementById('item-name').innerText = "未登録の商品";
+                    document.getElementById('item-name').innerText = "商品が見つかりませんでした";
                 }
-            } catch (e) { document.getElementById('item-name').innerText = "通信エラー"; }
+            } catch (e) { document.getElementById('item-name').innerText = "検索エラー"; }
         }
 
-        // --- バーコードリーダー設定 ---
-        const barcodeScanner = new Html5Qrcode("barcode-reader");
-        barcodeScanner.start(
-            { facingMode: "environment" }, 
-            { fps: 10, qrbox: { width: 250, height: 100 } },
-            (text) => {
-                playBeep(880);
-                document.getElementById('res-code').innerText = "JAN: " + text;
-                fetchYahooData(text);
-                addHistory(text);
+        async function startScanner() {
+            if (html5QrCode) {
+                await html5QrCode.stop();
             }
-        );
+            html5QrCode = new Html5Qrcode("reader");
+            const isQRMode = document.getElementById('mode-toggle').checked;
+            
+            // モードに応じた設定
+            const config = isQRMode 
+                ? { fps: 10, qrbox: { width: 200, height: 200 } } // QR用
+                : { fps: 10, qrbox: { width: 280, height: 120 } }; // バーコード用
 
-        // --- QRリーダー設定（外カメラ固定） ---
-        const qrScanner = new Html5Qrcode("qr-reader");
-        qrScanner.start(
-            { facingMode: "environment" }, 
-            { fps: 10, qrbox: { width: 150, height: 150 } },
-            (text) => {
-                playBeep(1320);
-                if (text.startsWith('http')) {
-                    window.open(text, '_blank');
-                } else {
-                    alert("QR内容: " + text);
+            document.getElementById('status-label').innerText = isQRMode ? "【QRモード】" : "【バーコードモード】";
+            document.getElementById('status-label').style.color = isQRMode ? "#007bff" : "#ff9900";
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => {
+                    if (!isScanning) return;
+                    isScanning = false;
+                    
+                    if (isQRMode) {
+                        playBeep(1320); // 高い音
+                        if (decodedText.startsWith('http')) window.open(decodedText, '_blank');
+                        else alert("QR: " + decodedText);
+                    } else {
+                        playBeep(880); // 低い音
+                        fetchYahooData(decodedText);
+                    }
+                    
+                    document.getElementById('res-code').innerText = "CODE: " + decodedText;
+                    const list = document.getElementById('history-list');
+                    list.innerText = decodedText + " | " + list.innerText;
+
+                    setTimeout(() => { isScanning = true; }, 3000);
                 }
-                addHistory("QR: " + text);
-            }
-        );
-
-        function addHistory(msg) {
-            const list = document.getElementById('history-list');
-            list.innerText = msg + " | " + list.innerText;
+            ).catch(err => console.error(err));
         }
+
+        function switchMode() {
+            startScanner();
+        }
+
+        // 最初の起動
+        window.onload = startScanner;
     </script>
 </body>
 </html>
