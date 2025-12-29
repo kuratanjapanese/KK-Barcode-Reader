@@ -3,57 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>フルスキャンリーダー v6.4</title>
+    <title>工場コード対応リーダー v6.5</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { 
-            margin: 0; padding: 0; font-family: sans-serif; 
-            background-color: #000; color: #fff;
-            height: 100vh; display: flex; flex-direction: column;
-        }
-        
-        /* スイッチ：画面上部に固定 */
-        .header {
-            padding: 10px; background: rgba(0,0,0,0.8);
-            display: flex; flex-direction: column; align-items: center; gap: 5px;
-        }
-        .switch-container {
-            display: flex; align-items: center; gap: 15px;
-            background: #fff; padding: 10px 25px; border-radius: 50px;
-        }
+        body { margin: 0; padding: 0; font-family: sans-serif; background-color: #000; color: #fff; height: 100vh; display: flex; flex-direction: column; }
+        .header { padding: 10px; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .switch-container { display: flex; align-items: center; gap: 15px; background: #fff; padding: 10px 25px; border-radius: 50px; }
         .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ff9900; transition: .4s; border-radius: 34px; }
         .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #007bff; }
         input:checked + .slider:before { transform: translateX(30px); }
-
-        /* カメラ画面：画面の大部分を占拠 */
-        #reader { 
-            flex-grow: 1; width: 100%; background: #000;
-        }
-        /* 角の向きを修正 */
+        #reader { flex-grow: 1; width: 100%; background: #000; }
         #reader__scan_region img { transform: scaleY(-1); }
-
-        /* 情報エリア：画面下部に浮かせる */
-        .info-panel {
-            background: white; color: #333; padding: 15px;
-            border-top-left-radius: 20px; border-top-right-radius: 20px;
-            box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
-        }
+        .info-panel { background: white; color: #333; padding: 15px; border-top-left-radius: 20px; border-top-right-radius: 20px; box-shadow: 0 -4px 10px rgba(0,0,0,0.3); }
         .price-tag { font-size: 30px; color: #ff0033; font-weight: bold; margin: 5px 0; }
         .item-name { font-size: 14px; font-weight: bold; margin-bottom: 10px; min-height: 2.4em; }
-        
-        .btn-container { display: flex; gap: 10px; }
-        .btn { flex: 1; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; display: none; text-align: center; }
+        .btn-container { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn { flex: 1; min-width: 100px; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; display: none; text-align: center; }
         .btn-amazon { background: #ff9900; }
         .btn-yahoo { background: #ff0033; }
-        
-        #res-code { font-size: 11px; color: #888; margin-top: 8px; }
+        .btn-google { background: #4285F4; } /* 工場コード用にGoogle検索ボタンを追加 */
+        #res-code { font-size: 11px; color: #888; margin-top: 8px; word-break: break-all; }
     </style>
 </head>
 <body>
-
     <div class="header">
         <div class="switch-container">
             <span style="color:#555; font-size:14px; font-weight:bold;">🛒 商品</span>
@@ -65,20 +40,17 @@
         </div>
         <div id="status-label" style="font-size:12px; font-weight:bold; color:#ff9900;">【バーコードモード】</div>
     </div>
-    
     <div id="reader"></div>
-
     <div class="info-panel">
         <div id="item-name" class="item-name">スキャンしてください</div>
         <div id="yahoo-price" class="price-tag">¥ ---</div>
-        
         <div class="btn-container">
             <a id="amazon-link" class="btn btn-amazon" target="_blank">Amazon</a>
             <a id="yahoo-link" class="btn btn-yahoo" target="_blank">Yahoo!</a>
+            <a id="google-link" class="btn btn-google" target="_blank">Googleで検索</a>
         </div>
         <div id="res-code">CODE: -</div>
     </div>
-
     <script>
         const CLIENT_ID = "dj00aiZpPUZYTWdEYTdlSHF1aCZzPWNvbnN1bWVyc2VjcmV0Jng9Zjc-";
         let html5QrCode;
@@ -94,26 +66,21 @@
                     document.getElementById('item-name').innerText = item.name;
                     document.getElementById('yahoo-price').innerText = `¥ ${item.price.toLocaleString()}`;
                 } else {
-                    document.getElementById('item-name').innerText = "未登録の商品";
+                    document.getElementById('item-name').innerText = "Yahoo!未登録：物流・工場用コードの可能性があります";
+                    document.getElementById('yahoo-price').innerText = "¥ ---";
                 }
             } catch (e) { document.getElementById('item-name').innerText = "検索エラー"; }
         }
 
         async function startScanner() {
-            if (html5QrCode) {
-                await html5QrCode.stop();
-                html5QrCode.clear();
-            }
+            if (html5QrCode) { await html5QrCode.stop(); html5QrCode.clear(); }
             html5QrCode = new Html5Qrcode("reader");
             const isQRMode = document.getElementById('mode-toggle').checked;
-            
-            // 画面いっぱいに広げる設定
             const config = { 
-                fps: 15, // 少し反応を速く
-                qrbox: isQRMode ? { width: 250, height: 250 } : { width: 300, height: 150 },
-                aspectRatio: window.innerWidth / (window.innerHeight * 0.6) // 画面比率に合わせる
+                fps: 15, 
+                qrbox: isQRMode ? { width: 250, height: 250 } : { width: 320, height: 180 },
+                aspectRatio: window.innerWidth / (window.innerHeight * 0.6)
             };
-
             document.getElementById('status-label').innerText = isQRMode ? "【QRモード】" : "【バーコードモード】";
             document.getElementById('status-label').style.color = isQRMode ? "#007bff" : "#ff9900";
 
@@ -121,9 +88,14 @@
                 if (!isScanning) return;
                 isScanning = false;
                 document.getElementById('res-code').innerText = "CODE: " + text;
+                
+                // Google検索ボタンは常に表示するようにして、工場コードでも調べられるようにする
+                const ggl = document.getElementById('google-link');
+                ggl.href = "https://www.google.com/search?q=" + encodeURIComponent(text);
+                ggl.style.display = 'block';
+
                 if (isQRMode) {
                     if (text.startsWith('http')) window.open(text, '_blank');
-                    else alert("QR: " + text);
                 } else {
                     document.getElementById('amazon-link').style.display = 'block';
                     document.getElementById('amazon-link').href = "https://www.amazon.co.jp/s?k=" + text;
@@ -134,7 +106,6 @@
                 setTimeout(() => { isScanning = true; }, 3000);
             });
         }
-
         function switchMode() { startScanner(); }
         window.onload = startScanner;
     </script>
