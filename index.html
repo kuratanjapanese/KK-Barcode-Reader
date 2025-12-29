@@ -3,61 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最強二刀流リーダー v4.0</title>
+    <title>最強2画面リーダー v5.0</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 10px; }
-        #reader { width: 100%; max-width: 450px; margin: 10px auto; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.2); background: #fff; }
-        .info-card { background: white; padding: 15px; border-radius: 15px; display: inline-block; width: 95%; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 10px; }
-        .price-tag { font-size: 28px; color: #ff0033; font-weight: bold; margin: 10px 0; }
-        .item-name { font-size: 14px; color: #333; min-height: 45px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-        .btn-container { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
-        .btn { flex: 1; color: white; text-decoration: none; padding: 12px 5px; border-radius: 8px; font-weight: bold; font-size: 14px; display: none; }
-        .btn-amazon { background: #ff9900; }
-        .btn-yahoo { background: #ff0033; }
-        .history-area { text-align: left; max-width: 400px; margin: 20px auto; background: rgba(255,255,255,0.7); padding: 15px; border-radius: 10px; font-size: 12px; }
+        body { font-family: sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 5px; }
+        .scanner-label { background: #333; color: white; font-size: 12px; padding: 5px; border-radius: 5px 5px 0 0; display: block; width: fit-content; margin: 0 auto; }
+        .scanner-container { width: 100%; max-width: 400px; margin: 0 auto 10px; border: 3px solid #333; border-radius: 10px; overflow: hidden; height: 180px; background: #000; }
+        
+        .info-card { background: white; padding: 10px; border-radius: 15px; display: inline-block; width: 95%; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        .price-tag { font-size: 24px; color: #ff0033; font-weight: bold; margin: 5px 0; }
+        .item-name { font-size: 13px; color: #333; font-weight: bold; min-height: 35px; }
+        
+        .history-area { text-align: left; max-width: 400px; margin: 0 auto; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 10px; font-size: 11px; max-height: 80px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
-    <h2 style="color:#333;">QR & バーコード二刀流 v4.0</h2>
-    
-    <div id="reader"></div>
+    <span class="scanner-label">🛒 商品バーコード用</span>
+    <div id="barcode-reader" class="scanner-container"></div>
 
     <div class="info-card">
-        <div id="item-name" class="item-name">スキャンを待機中...</div>
+        <div id="item-name" class="item-name">バーコードをスキャン！</div>
         <div id="yahoo-price" class="price-tag">¥ ---</div>
-        <div id="res-code" style="font-size: 12px; color: #999; margin-bottom: 10px;">CODE: -</div>
-        
-        <div class="btn-container">
-            <a id="amazon-link" class="btn btn-amazon" target="_blank">Amazon</a>
-            <a id="yahoo-link" class="btn btn-yahoo" target="_blank">Yahoo!</a>
-        </div>
+        <div id="res-code" style="font-size: 11px; color: #999;">CODE: -</div>
     </div>
 
+    <span class="scanner-label">🔗 QRコード用</span>
+    <div id="qr-reader" class="scanner-container"></div>
+
     <div class="history-area">
-        <strong>📜 スキャン履歴</strong>
-        <div id="history-list"></div>
+        <strong>📜 履歴:</strong> <span id="history-list"></span>
     </div>
 
     <script>
         const CLIENT_ID = "dj00aiZpPUZYTWdEYTdlSHF1aCZzPWNvbnN1bWVyc2VjcmV0Jng9Zjc-";
-        let isScanning = true;
-
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playBeep() {
+        
+        function playBeep(freq = 880) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
             gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
             osc.start(); osc.stop(audioCtx.currentTime + 0.1);
         }
 
         async function fetchYahooData(janCode) {
-            const yahooUrl = `https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch?appid=${CLIENT_ID}&jan_code=${janCode}`;
-            const url = `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`;
-            
+            const url = `https://corsproxy.io/?${encodeURIComponent("https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch?appid="+CLIENT_ID+"&jan_code="+janCode)}`;
             try {
                 const res = await fetch(url);
                 const data = await res.json();
@@ -66,59 +58,44 @@
                     document.getElementById('item-name').innerText = item.name;
                     document.getElementById('yahoo-price').innerText = `¥ ${item.price.toLocaleString()}`;
                 } else {
-                    document.getElementById('item-name').innerText = "商品情報が見つかりませんでした";
-                    document.getElementById('yahoo-price').innerText = "¥ ---";
+                    document.getElementById('item-name').innerText = "未登録の商品";
                 }
-            } catch (e) {
-                document.getElementById('item-name').innerText = "商品検索エラー";
-            }
+            } catch (e) { document.getElementById('item-name').innerText = "通信エラー"; }
         }
 
-        function onScanSuccess(decodedText, decodedResult) {
-            if (!isScanning) return;
-            isScanning = false;
-            
-            playBeep();
-            document.getElementById('res-code').innerText = "CODE: " + decodedText;
-
-            // URLなら直接開く
-            if (decodedText.startsWith('http')) {
-                document.getElementById('item-name').innerText = "URLを検出しました";
-                window.open(decodedText, '_blank');
-            } else {
-                // 商品バーコード（数字のみ）なら検索
-                const amz = document.getElementById('amazon-link');
-                amz.href = "https://www.amazon.co.jp/s?k=" + decodedText;
-                amz.style.display = 'block';
-
-                const yho = document.getElementById('yahoo-link');
-                yho.href = "https://shopping.yahoo.co.jp/search?p=" + decodedText;
-                yho.style.display = 'block';
-
-                fetchYahooData(decodedText);
-            }
-
-            // 履歴に追加
-            const historyList = document.getElementById('history-list');
-            const newItem = document.createElement('div');
-            newItem.style.borderBottom = "1px dotted #ccc";
-            newItem.innerText = `${new Date().toLocaleTimeString()} - ${decodedText}`;
-            historyList.prepend(newItem);
-
-            // 5秒後に次をスキャン可能にする
-            setTimeout(() => { isScanning = true; }, 5000);
-        }
-
-        const html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { 
-                fps: 10, 
-                qrbox: {width: 250, height: 250},
-                // 全方式（QR, JAN-13, JAN-8など）を自動で判別する設定
-                rememberLastUsedCamera: true,
-                aspectRatio: 1.0
+        // --- バーコードリーダー設定 ---
+        const barcodeScanner = new Html5Qrcode("barcode-reader");
+        barcodeScanner.start(
+            { facingMode: "environment" }, 
+            { fps: 10, qrbox: { width: 250, height: 100 } },
+            (text) => {
+                playBeep(880);
+                document.getElementById('res-code').innerText = "JAN: " + text;
+                fetchYahooData(text);
+                addHistory(text);
             }
         );
-        html5QrcodeScanner.render(onScanSuccess);
+
+        // --- QRリーダー設定（外カメラ固定） ---
+        const qrScanner = new Html5Qrcode("qr-reader");
+        qrScanner.start(
+            { facingMode: "environment" }, 
+            { fps: 10, qrbox: { width: 150, height: 150 } },
+            (text) => {
+                playBeep(1320);
+                if (text.startsWith('http')) {
+                    window.open(text, '_blank');
+                } else {
+                    alert("QR内容: " + text);
+                }
+                addHistory("QR: " + text);
+            }
+        );
+
+        function addHistory(msg) {
+            const list = document.getElementById('history-list');
+            list.innerText = msg + " | " + list.innerText;
+        }
     </script>
 </body>
 </html>
