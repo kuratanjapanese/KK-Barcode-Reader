@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全方式対応リーダー v3.3</title>
+    <title>最強二刀流リーダー v4.0</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 10px; transition: background-color 0.3s; }
-        .flash { background-color: #a7ffeb !important; }
-        #interactive { width: 100%; max-width: 400px; height: 250px; margin: 10px auto; border: 5px solid #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.2); background: #000; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .info-card { background: white; padding: 15px; border-radius: 15px; display: inline-block; width: 95%; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        body { font-family: sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 10px; }
+        #reader { width: 100%; max-width: 450px; margin: 10px auto; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.2); background: #fff; }
+        .info-card { background: white; padding: 15px; border-radius: 15px; display: inline-block; width: 95%; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 10px; }
         .price-tag { font-size: 28px; color: #ff0033; font-weight: bold; margin: 10px 0; }
-        .item-name { font-size: 14px; color: #333; min-height: 45px; display: flex; align-items: center; justify-content: center; font-weight: bold; padding: 0 5px; }
+        .item-name { font-size: 14px; color: #333; min-height: 45px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .btn-container { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
         .btn { flex: 1; color: white; text-decoration: none; padding: 12px 5px; border-radius: 8px; font-weight: bold; font-size: 14px; display: none; }
         .btn-amazon { background: #ff9900; }
         .btn-yahoo { background: #ff0033; }
-        .history-area { text-align: left; max-width: 400px; margin: 0 auto; background: rgba(255,255,255,0.7); padding: 15px; border-radius: 10px; font-size: 12px; }
+        .history-area { text-align: left; max-width: 400px; margin: 20px auto; background: rgba(255,255,255,0.7); padding: 15px; border-radius: 10px; font-size: 12px; }
     </style>
 </head>
 <body>
 
-    <h2 style="color:#333;">全方式対応リーダー v3.3</h2>
-    <div id="interactive"></div>
+    <h2 style="color:#333;">QR & バーコード二刀流 v4.0</h2>
+    
+    <div id="reader"></div>
 
     <div class="info-card">
-        <div id="item-name" class="item-name">バーコードをスキャンしてね</div>
+        <div id="item-name" class="item-name">スキャンを待機中...</div>
         <div id="yahoo-price" class="price-tag">¥ ---</div>
-        <div id="res-code" style="font-size: 12px; color: #999; margin-bottom: 10px;">JAN: -</div>
+        <div id="res-code" style="font-size: 12px; color: #999; margin-bottom: 10px;">CODE: -</div>
         
         <div class="btn-container">
             <a id="amazon-link" class="btn btn-amazon" target="_blank">Amazon</a>
@@ -40,9 +40,9 @@
         <div id="history-list"></div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <script>
         const CLIENT_ID = "dj00aiZpPUZYTWdEYTdlSHF1aCZzPWNvbnN1bWVyc2VjcmV0Jng9Zjc-";
+        let isScanning = true;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playBeep() {
@@ -66,80 +66,59 @@
                     document.getElementById('item-name').innerText = item.name;
                     document.getElementById('yahoo-price').innerText = `¥ ${item.price.toLocaleString()}`;
                 } else {
-                    document.getElementById('item-name').innerText = "Yahoo!に未登録の商品です";
+                    document.getElementById('item-name').innerText = "商品情報が見つかりませんでした";
                     document.getElementById('yahoo-price').innerText = "¥ ---";
                 }
             } catch (e) {
-                document.getElementById('item-name').innerText = "API読み込みエラー";
-                console.error(e);
+                document.getElementById('item-name').innerText = "商品検索エラー";
             }
         }
 
-        // v3.3: 主要なバーコード方式をすべて追加！
-        Quagga.init({
-            inputStream: { 
-                type: "LiveStream", 
-                target: document.querySelector('#interactive'), 
-                constraints: { 
-                    facingMode: "environment",
-                    width: { min: 1280 }, // 高解像度にして精度UP
-                    height: { min: 720 }
-                } 
-            },
-            locate: true,
-            decoder: { 
-                // 対応方式を全開放！
-                readers: [
-                    "ean_reader",      // JAN-13（いろはす等）
-                    "ean_8_reader",    // JAN-8（アポロ等）
-                    "code_128_reader", // 物流などで使われる方式
-                    "code_39_reader",  // 工業などで使われる方式
-                    "upc_reader",      // 海外の方式
-                    "upc_e_reader"     // 海外の短縮方式
-                ],
-                multiple: false 
-            },
-            patchSize: "medium",
-            halfSample: false // ファイルサイズ無視！精度を最大にする
-        }, (err) => { 
-            if(err) {
-                document.getElementById('item-name').innerText = "カメラ起動エラー";
-                return;
-            }
-            Quagga.start(); 
-        });
-
-        let isScanning = true;
-        Quagga.onDetected((data) => {
+        function onScanSuccess(decodedText, decodedResult) {
             if (!isScanning) return;
-            const code = data.codeResult.code;
             isScanning = false;
-
-            playBeep();
-            document.body.classList.add('flash');
-            setTimeout(() => document.body.classList.remove('flash'), 300);
-
-            document.getElementById('res-code').innerText = "JAN: " + code;
             
-            const amz = document.getElementById('amazon-link');
-            amz.href = "https://www.amazon.co.jp/s?k=" + code;
-            amz.style.display = 'block';
+            playBeep();
+            document.getElementById('res-code').innerText = "CODE: " + decodedText;
 
-            const yho = document.getElementById('yahoo-link');
-            yho.href = "https://shopping.yahoo.co.jp/search?p=" + code;
-            yho.style.display = 'block';
+            // URLなら直接開く
+            if (decodedText.startsWith('http')) {
+                document.getElementById('item-name').innerText = "URLを検出しました";
+                window.open(decodedText, '_blank');
+            } else {
+                // 商品バーコード（数字のみ）なら検索
+                const amz = document.getElementById('amazon-link');
+                amz.href = "https://www.amazon.co.jp/s?k=" + decodedText;
+                amz.style.display = 'block';
 
-            fetchYahooData(code);
+                const yho = document.getElementById('yahoo-link');
+                yho.href = "https://shopping.yahoo.co.jp/search?p=" + decodedText;
+                yho.style.display = 'block';
 
+                fetchYahooData(decodedText);
+            }
+
+            // 履歴に追加
             const historyList = document.getElementById('history-list');
             const newItem = document.createElement('div');
             newItem.style.borderBottom = "1px dotted #ccc";
-            newItem.style.padding = "3px 0";
-            newItem.innerText = `${new Date().toLocaleTimeString()} - ${code}`;
+            newItem.innerText = `${new Date().toLocaleTimeString()} - ${decodedText}`;
             historyList.prepend(newItem);
 
-            setTimeout(() => { isScanning = true; }, 3000);
-        });
+            // 5秒後に次をスキャン可能にする
+            setTimeout(() => { isScanning = true; }, 5000);
+        }
+
+        const html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { 
+                fps: 10, 
+                qrbox: {width: 250, height: 250},
+                // 全方式（QR, JAN-13, JAN-8など）を自動で判別する設定
+                rememberLastUsedCamera: true,
+                aspectRatio: 1.0
+            }
+        );
+        html5QrcodeScanner.render(onScanSuccess);
     </script>
 </body>
 </html>
