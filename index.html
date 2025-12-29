@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最強バーコードリーダー v3.1</title>
+    <title>最強バーコードリーダー v3.2</title>
     <style>
         body { font-family: sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 10px; transition: background-color 0.3s; }
         .flash { background-color: #a7ffeb !important; }
@@ -21,7 +21,7 @@
 </head>
 <body>
 
-    <h2 style="color:#333;">商品検索リーダー v3.1</h2>
+    <h2 style="color:#333;">商品検索リーダー v3.2</h2>
     
     <div id="interactive"></div>
 
@@ -43,7 +43,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <script>
-        // 君が取得したYahoo Client ID
         const CLIENT_ID = "dj00aiZpPUZYTWdEYTdlSHF1aCZzPWNvbnN1bWVyc2VjcmV0Jng9Zjc-";
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -57,7 +56,6 @@
         }
 
         async function fetchYahooData(janCode) {
-            // 59行目付近：CORS対策で中継サーバーを使用
             const yahooUrl = `https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch?appid=${CLIENT_ID}&jan_code=${janCode}`;
             const url = `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`;
             
@@ -78,13 +76,24 @@
             }
         }
 
+        // v3.2: かすれ・ボケ対策設定
         Quagga.init({
             inputStream: { 
                 type: "LiveStream", 
                 target: document.querySelector('#interactive'), 
-                constraints: { facingMode: "environment" } 
+                constraints: { 
+                    facingMode: "environment",
+                    width: { min: 640 },
+                    height: { min: 480 }
+                } 
             },
-            decoder: { readers: ["ean_reader"] }
+            locate: true, // バーコードの位置を自動追跡
+            decoder: { 
+                readers: ["ean_reader"],
+                multiple: false 
+            },
+            patchSize: "medium", // スキャン精度の調整
+            halfSample: true    // 処理速度と精度のバランス
         }, (err) => { 
             if(err) {
                 document.getElementById('item-name').innerText = "カメラ起動エラー";
@@ -105,7 +114,6 @@
 
             document.getElementById('res-code').innerText = "JAN: " + code;
             
-            // ボタン表示とリンク設定
             const amz = document.getElementById('amazon-link');
             amz.href = "https://www.amazon.co.jp/s?k=" + code;
             amz.style.display = 'block';
@@ -114,10 +122,8 @@
             yho.href = "https://shopping.yahoo.co.jp/search?p=" + code;
             yho.style.display = 'block';
 
-            // Yahoo APIで価格を召喚
             fetchYahooData(code);
 
-            // 履歴に追加
             const historyList = document.getElementById('history-list');
             const newItem = document.createElement('div');
             newItem.style.borderBottom = "1px dotted #ccc";
@@ -125,7 +131,6 @@
             newItem.innerText = `${new Date().toLocaleTimeString()} - ${code}`;
             historyList.prepend(newItem);
 
-            // 3秒待機
             setTimeout(() => { isScanning = true; }, 3000);
         });
     </script>
