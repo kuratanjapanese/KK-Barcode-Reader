@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最強バーコードリーダー ver2.0</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 20px; transition: background-color 0.3s; }
+        .flash { background-color: #a7ffeb !important; }
+
+        #interactive { width: 100%; max-width: 400px; height: 250px; margin: 10px auto; border: 5px solid #fff; border-radius: 10px; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+
+        .info-card { background: white; padding: 15px; border-radius: 15px; display: inline-block; width: 90%; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        
+        /* ボタンを横並びにする設定 */
+        .btn-container { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+        .btn { display: none; flex: 1; color: white; text-decoration: none; padding: 12px 5px; border-radius: 8px; font-weight: bold; font-size: 14px; }
+        .btn-amazon { background: #ff9900; } /* Amazonカラー */
+        .btn-yahoo { background: #ff0033; }  /* Yahooカラー */
+        
+        .history-area { text-align: left; max-width: 400px; margin: 0 auto; background: white; padding: 15px; border-radius: 10px; }
+        .history-item { border-bottom: 1px solid #eee; padding: 5px 0; font-size: 14px; color: #555; }
+    </style>
+</head>
+<body>
+
+    <h1>バーコードリーダー</h1>
+
+    <div id="interactive"></div>
+
+    <div class="info-card">
+        <div>読み取った番号: <span id="res-code" style="font-weight:bold; font-size: 20px;">-</span></div>
+        
+        <div class="btn-container">
+            <a id="amazon-link" class="btn btn-amazon" href="#" target="_blank">Amazonで検索</a>
+            <a id="yahoo-link" class="btn btn-yahoo" href="#" target="_blank">Yahoo!で検索</a>
+        </div>
+    </div>
+
+    <div class="history-area">
+        <strong>📜 読み取り履歴</strong>
+        <div id="history-list"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playBeep() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        Quagga.init({
+            inputStream: { type: "LiveStream", target: document.querySelector('#interactive'), constraints: { facingMode: "environment" } },
+            decoder: { readers: ["ean_reader"] }
+        }, (err) => { if(!err) Quagga.start(); });
+
+        let isScanning = true;
+        Quagga.onDetected((data) => {
+            if (!isScanning) return;
+            const code = data.codeResult.code;
+            isScanning = false;
+
+            playBeep();
+            document.body.classList.add('flash');
+            setTimeout(() => document.body.classList.remove('flash'), 300);
+
+            document.getElementById('res-code').innerText = code;
+            
+            // Amazonリンク更新
+            const amz = document.getElementById('amazon-link');
+            amz.href = "https://www.amazon.co.jp/s?k=" + code;
+            amz.style.display = 'block';
+
+            // Yahooリンク更新
+            const yho = document.getElementById('yahoo-link');
+            yho.href = "https://shopping.yahoo.co.jp/search?p=" + code;
+            yho.style.display = 'block';
+
+            // 履歴に追加
+            const historyList = document.getElementById('history-list');
+            const newItem = document.createElement('div');
+            newItem.className = 'history-item';
+            newItem.innerText = `[${new Date().toLocaleTimeString()}] ${code}`;
+            historyList.prepend(newItem);
+
+            setTimeout(() => { isScanning = true; }, 2000);
+        });
+    </script>
+</body>
+</html>
