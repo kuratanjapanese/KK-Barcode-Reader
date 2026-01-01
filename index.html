@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>完成形リーダー v7.2</title>
+    <title>全自動リーダー v7.3</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        /* ナビゲーションバーを考慮して全体の高さを動的に制限 */
         html, body { 
             margin: 0; padding: 0; width: 100%; height: 100dvh; 
             overflow: hidden; font-family: sans-serif; 
@@ -14,23 +13,15 @@
             display: flex; flex-direction: column;
         }
         
-        .header { height: 45px; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10; }
-        .switch-container { display: flex; align-items: center; gap: 8px; background: #fff; padding: 3px 15px; border-radius: 50px; }
-        .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ff9900; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #007bff; }
-        input:checked + .slider:before { transform: translateX(16px); }
+        .header { height: 40px; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .auto-label { font-size: 12px; font-weight: bold; color: #00ffcc; letter-spacing: 2px; }
 
-        /* カメラ：情報を圧迫しないように自動調整 */
         #reader { flex-grow: 1; width: 100%; background: #000; overflow: hidden; }
         #reader__scan_region img { transform: scaleY(-1); }
 
-        /* 情報パネル：ナビバー対策で下に大きな余白(30px)を確保 */
         .info-panel {
             background: white; color: #333; 
-            padding: 8px 8px 30px 8px; /* 下部マージンをさらに強化 */
+            padding: 8px 8px 30px 8px; 
             border-top-left-radius: 20px; border-top-right-radius: 20px;
             box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
             display: flex; flex-direction: column; gap: 5px;
@@ -54,14 +45,7 @@
 </head>
 <body>
     <div class="header">
-        <div class="switch-container">
-            <span style="color:#555; font-size:9px; font-weight:bold;">🛒 商品</span>
-            <label class="switch">
-                <input type="checkbox" id="mode-toggle" onchange="switchMode()">
-                <span class="slider"></span>
-            </label>
-            <span style="color:#555; font-size:9px; font-weight:bold;">🔗 QR</span>
-        </div>
+        <div class="auto-label">● AUTO DETECTING...</div>
     </div>
     
     <div id="reader"></div>
@@ -121,28 +105,32 @@
         }
 
         async function startScanner() {
-            if (html5QrCode) { await html5QrCode.stop(); html5QrCode.clear(); }
             html5QrCode = new Html5Qrcode("reader");
-            const isQRMode = document.getElementById('mode-toggle').checked;
             const readerWidth = document.getElementById('reader').clientWidth;
-            const boxSize = Math.min(readerWidth * 0.7, 250);
+            // どちらも対応するため、スキャン領域は少し大きめの正方形に設定
+            const boxSize = Math.min(readerWidth * 0.8, 250);
             
+            // 全フォーマット対応モードで起動
             html5QrCode.start({ facingMode: "environment" }, 
-            { fps: 20, qrbox: { width: boxSize, height: isQRMode ? boxSize : boxSize * 0.5 } }, 
+            { fps: 20, qrbox: { width: boxSize, height: boxSize } }, 
             (text) => {
                 if (!isScanning) return;
                 isScanning = false;
                 document.getElementById('res-code').innerText = "CODE: " + text;
-                if (isQRMode) {
-                    if (text.startsWith('http')) window.open(text, '_blank');
+
+                // 読み取った内容がURLかどうか判別
+                if (text.startsWith('http')) {
+                    document.getElementById('item-name').innerText = "URLを検出しました";
+                    document.getElementById('yahoo-price').innerText = "¥ ---";
+                    window.open(text, '_blank');
                     updateButtons(text, text);
                 } else {
+                    // 数字や物流コードなら商品検索へ
                     fetchYahooData(text);
                 }
                 setTimeout(() => { isScanning = true; }, 3000);
             });
         }
-        function switchMode() { startScanner(); }
         window.onload = startScanner;
     </script>
 </body>
